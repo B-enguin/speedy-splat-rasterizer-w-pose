@@ -573,6 +573,7 @@ renderCUDA(
 	float4* __restrict__ dL_dconic2D,
 	float* __restrict__ dL_dopacity,
 	float* __restrict__ dL_dcolors,
+	float* __restrict__ dL_ddepths
 	float* __restrict__ dL_dG2)
 {
 	// We rasterize again. Compute necessary block info.
@@ -652,10 +653,12 @@ renderCUDA(
 			collected_xy[tid] = points_xy_image[coll_id];
 			collected_conic_opacity[tid] = conic_opacity[coll_id];
 			#pragma unroll
-			for (int i = 0; i < C; i++)
+			for (int i = 0; i < C; i++) {
 				collected_colors[i * BLOCK_SIZE + tid] = colors[coll_id * C + i];
+			}
+			collected_depths[tid] = depths[coll_id];
 		}
-		collected_depths[tid] = depths[coll_id];
+		
 
 		// Iterate over Gaussians
 		for (int j = 0; j < min(BLOCK_SIZE, toDo); j++) {
