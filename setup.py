@@ -15,7 +15,7 @@ import os
 os.path.dirname(os.path.abspath(__file__))
 
 setup(
-    name="diff_gaussian_rasterization",
+    name="speedy_diff_gaussian_rasterization",
     packages=['diff_gaussian_rasterization'],
     ext_modules=[
         CUDAExtension(
