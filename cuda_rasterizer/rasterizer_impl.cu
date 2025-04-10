@@ -76,7 +76,7 @@ __global__ void duplicateWithKeys(
 	uint64_t* gaussian_keys_unsorted,
 	uint32_t* gaussian_values_unsorted,
 	float4* con_o,
-  uint32_t* tiles_touched,
+  	uint32_t* tiles_touched,
 	dim3 grid)
 {
 	auto idx = cg::this_grid().thread_rank();
@@ -203,9 +203,12 @@ int CudaRasterizer::Rasterizer::forward(
 	const float* cam_pos,
 	const float tan_fovx, float tan_fovy,
 	const bool prefiltered,
-  float* kernel_times,
+  	float* kernel_times,
 	float* out_color,
+	float* out_depth,
+	float* out_opacity,
 	int* radii,
+	int* n_touched,
 	bool debug)
 {
   // Timers for functions
@@ -330,7 +333,12 @@ int CudaRasterizer::Rasterizer::forward(
 		imgState.accum_alpha,
 		imgState.n_contrib,
 		background,
-		out_color), debug)
+		out_color,
+		geomState.depths,
+		out_depth, 
+		out_opacity,
+		n_touched
+	), debug)
 
   // End Overall timer
   cudaEventRecord(overallStop, 0);
@@ -359,6 +367,7 @@ void CudaRasterizer::Rasterizer::backward(
 	const float* cov3D_precomp,
 	const float* viewmatrix,
 	const float* projmatrix,
+	const float* projmatrix_raw,
 	const float* campos,
 	const float tan_fovx, float tan_fovy,
 	const int* radii,
@@ -366,15 +375,18 @@ void CudaRasterizer::Rasterizer::backward(
 	char* binning_buffer,
 	char* img_buffer,
 	const float* dL_dpix,
+	const float* dL_dpix_depth,
 	float* dL_dmean2D,
 	float* dL_dconic,
 	float* dL_dopacity,
 	float* dL_dcolor,
+	float* dL_ddepth,
 	float* dL_dmean3D,
 	float* dL_dcov3D,
 	float* dL_dsh,
 	float* dL_dscale,
 	float* dL_drot,
+	float* dL_dtau,
 	float* dL_dG2,
 	bool debug)
 {
@@ -397,6 +409,8 @@ void CudaRasterizer::Rasterizer::backward(
 	// opacity and RGB of Gaussians from per-pixel loss gradients.
 	// If we were given precomputed colors and not SHs, use them.
 	const float* color_ptr = (colors_precomp != nullptr) ? colors_precomp : geomState.rgb;
+	const float* depth_ptr = geomState.depths;
+
 	CHECK_CUDA(BACKWARD::render(
 		tile_grid,
 		block,
@@ -407,13 +421,16 @@ void CudaRasterizer::Rasterizer::backward(
 		geomState.means2D,
 		geomState.conic_opacity,
 		color_ptr,
+		depth_ptr,
 		imgState.accum_alpha,
 		imgState.n_contrib,
 		dL_dpix,
+		dL_dpix_depth,
 		(float3*)dL_dmean2D,
 		(float4*)dL_dconic,
 		dL_dopacity,
 		dL_dcolor,
+		dL_ddepth,
     dL_dG2), debug)
 
 	// Take care of the rest of preprocessing. Was the precomputed covariance
@@ -431,6 +448,7 @@ void CudaRasterizer::Rasterizer::backward(
 		cov3D_ptr,
 		viewmatrix,
 		projmatrix,
+		projmatrix_raw,
 		focal_x, focal_y,
 		tan_fovx, tan_fovy,
 		(glm::vec3*)campos,
@@ -438,8 +456,10 @@ void CudaRasterizer::Rasterizer::backward(
 		dL_dconic,
 		(glm::vec3*)dL_dmean3D,
 		dL_dcolor,
+		dL_ddepth,
 		dL_dcov3D,
 		dL_dsh,
 		(glm::vec3*)dL_dscale,
-		(glm::vec4*)dL_drot), debug)
+		(glm::vec4*)dL_drot,
+		dL_dtau), debug)
 }
