@@ -573,7 +573,7 @@ renderCUDA(
 	float4* __restrict__ dL_dconic2D,
 	float* __restrict__ dL_dopacity,
 	float* __restrict__ dL_dcolors,
-	float* __restrict__ dL_ddepths
+	float* __restrict__ dL_ddepths,
 	float* __restrict__ dL_dG2)
 {
 	// We rasterize again. Compute necessary block info.
@@ -896,7 +896,7 @@ void BACKWARD::render(
 		dL_dconic2D,
 		dL_dopacity,
 		dL_dcolors,
-		dL_ddepths
+		dL_ddepths,
 		dL_dG2
 		);
 }
